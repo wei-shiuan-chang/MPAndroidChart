@@ -1,46 +1,101 @@
 language: android
-jdk: oraclejdk8
-env:
-  global:
-    - ANDROID_API_LEVEL=28
-    - ANDROID_BUILD_TOOLS_VERSION=28.0.3
-    - ANDROID_ABI=armeabi-v7a
-    - EMULATOR_API=28
-android:
-  licenses:
-    - 'android-sdk-preview-license-.+'
-    - 'android-sdk-license-.+'
-    - 'google-gdk-license-.+'
-  components:
-    - tools
-    - tools
-    - platform-tools
-    - extra-google-google_play_services
-    - extra-google-m2repository
-    - extra-android-m2repository
-    - build-tools-$ANDROID_BUILD_TOOLS_VERSION
-    - android-$ANDROID_API_LEVEL
-    - sys-img-armeabi-v7a-android-$EMULATOR_API
 
+sudo: required
+
+jdk: oraclejdk8
+
+before_cache:
+  - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
+  - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
+
+cache:
+  directories:
+    - $HOME/.gradle/caches/
+    - $HOME/.gradle/wrapper/
+    - $HOME/.android/build-cache
+    - /usr/local/android-sdk
 
 before_install:
-  - yes | sdkmanager "platforms;android-28"
-  - pip install --user codecov
+  - sudo apt-get update
+  - sudo apt-get install -qq lynx
+
+env:
+  global:
+    - ANDROID_BUILD_TOOLS=28.0.3  #override in matrix if necessary
+    - ADB_INSTALL_TIMEOUT=8 #minutes
+    - secure: "qYgTealcuZyphZa8iePOsWd5yVSolO9BJmRqm3xMt0frukuzHCrNp/cdzIPFwj49SaQRfS0GI21DOYw15r4qLThCutLohU4fgycNEaXW+O2SOhNlB3vVS/GqPx3GSjWIvjSjTBtBqcdDacEdEmufRzw3twduSwHsFMYXLdLP7X4+rOtGF0hagW7PVwuFmTDs80bcUQ+DCYDA/JPXUIpNqcMjhFR51mRgwKJFG7eJUFRxkUGRM+ZL+D7vSh/sispRXj5bqMAnj4WVBgeWb7BEnyTW61YwaN12jqv+sNN0Q+RgLhp3L+rRDlUBRI9BxLoHay5HfRdBG4FnFqDbN2NIF7exMFcNqml0Iwnz7mJNg+DlfjTYCSXk1Mi59Sx7cNC7jbJpRpEw7W2P/eRIh/HDsB4Zbt//0uIJmiwQh82o7CrskZDI7BhdTO/WtoBrhwjWFh0rW6/bs1F1+rO6udtP7KqaCHKzHHyddQIkUWe9ErXgkUU+ZiY8emGv8aXCRGTCOsZE9XuV17p/m8ITPvk2wqFwmPgVCkMQbyXMLVoE2bC1gwVp/u4UAlvO8GBwkiAMFk9S30Dt0j5IVquzDL3ZkYYvjqpgMOJMJSiTFGlKlL1h4NaufF/k6HpEpDqX6tmYfluOW2xD9mBfZrC62N0KMvPKrh0TzuLqalzlrnEvwks="
+
+  matrix:
+    #- ANDROID_TARGET=android-27 ANDROID_ABI=armeabi-v7a TEST_EMULATOR_SYS_IMAGE=sys-img-armeabi-v7a-google_apis-25 TEST_EMULATOR_TARGET_ANDROID_API=android-25 TEST_EMULATOR_TARGET_ANDROID_ABI=google_apis/armeabi-v7a  TEST_EMULATOR_TARGET_TAG=default
+    #try a non-googleapis test image
+    - ANDROID_TARGET=android-28 ANDROID_ABI=armeabi-v7a TEST_EMULATOR_SYS_IMAGE=sys-img-armeabi-v7a-android-24 TEST_EMULATOR_TARGET_ANDROID_API=android-24 TEST_EMULATOR_TARGET_ANDROID_ABI=armeabi-v7a TEST_EMULATOR_TARGET_TAG=default
+    #restrict to only one build in matrix until we can at least get that one to run instrumented test in emulator
+    #- ANDROID_TARGET=android-27 ANDROID_ABI=arm64-v8a TEST_EMULATOR_SYS_IMAGE=sys-img-arm64-v8a-google_apis-25 TEST_EMULATOR_TARGET_ANDROID_API=android-25 TEST_EMULATOR_TARGET_ANDROID_ABI=google_apis/arm64-v8a TEST_EMULATOR_TARGET_TAG=default
+    #we MUST disable x86/x86_64 test since emu currently requires hardware acceleration and travis ci virtualization apparently does not support this currently
+    #- ANDROID_TARGET=android-27 ANDROID_ABI=x86 TEST_EMULATOR_SYS_IMAGE=sys-img-x86-google_apis-26 TEST_EMULATOR_TARGET_ANDROID_API=android-26 TEST_EMULATOR_TARGET_ANDROID_ABI=google_apis/x86 TEST_EMULATOR_TARGET_TAG=default
+    #- ANDROID_TARGET=android-27 ANDROID_ABI=x86_64 TEST_EMULATOR_SYS_IMAGE=sys-img-x86_64-google_apis-26 TEST_EMULATOR_TARGET_ANDROID_API=android-26 TEST_EMULATOR_TARGET_ANDROID_ABI=google_apis/x86_64 TEST_EMULATOR_TARGET_TAG=default
+
+android:
+  components:
+    - tools
+    - platform-tools
+    #call "- tools" again to update to latest tools
+    - tools
+    - build-tools-$ANDROID_BUILD_TOOLS
+    - $ANDROID_TARGET
+    - $TEST_EMULATOR_TARGET_ANDROID_API
+    #further "extra" components
+    - extra-android-m2repository
+    #and finally the sys image for the test emulator
+    - $TEST_EMULATOR_SYS_IMAGE
+
+  licenses:
+    - android-sdk-preview-license-.+
+    - android-sdk-license-.+
+    - google-gdk-license-.+
 
 before_script:
-  - echo no | android create avd --force -n test -t android-$EMULATOR_API --abi $ANDROID_ABI
-  - emulator -avd test -no-audio -no-window &
+  #list available components for sdk update (via second call to "- tools" above)
+  #- android list sdk --no-ui --all --extended
+
+  #update sdk platform for emulator
+  - echo "y" | android update sdk -a --no-ui --filter $TEST_EMULATOR_TARGET_ANDROID_API
+  #update the emulator sys image
+  - echo "y" | android update sdk -a --no-ui --filter $TEST_EMULATOR_SYS_IMAGE
+
+  - export WRK_DIR=$(pwd)
+  - echo WRK_DIR is $WRK_DIR
+
+  #set mbgl api key - apk will not build without one
+  - cd ${WRK_DIR}/android/TMHarness/TMHarnessUX
+  - sed -i "s/YOUR_MAPBOX_API_ACCESS_TOKEN/${MBGL_API_ACCESS_TOKEN}/g" mbgl.properties
+  # - cat mbgl.properties
+
+  #start avd/emulator appropriate for build target - see env.matrix
+  #list available avd targets - uncomment and run this once to get an updated list of currently available targets for emulator
+  # - android list targets
+  - echo creating test avd for target api "$TEST_EMULATOR_TARGET_ANDROID_API" target abi "$TEST_EMULATOR_TARGET_ANDROID_ABI" target tag "$TEST_EMULATOR_TARGET_TAG"
+  - echo no | android create avd --force -n test -t $TEST_EMULATOR_TARGET_ANDROID_API --abi $TEST_EMULATOR_TARGET_ANDROID_ABI --tag $TEST_EMULATOR_TARGET_TAG
+  - QEMU_AUDIO_DRV=none emulator -avd test -no-window &
   - android-wait-for-emulator
   - adb shell input keyevent 82 &
 
-
 script:
-  - ./gradlew build check
-  - if [ -e ./gradlew ]; then ./gradlew jacocoTestReport;else gradle jacocoTestReport;fi
-  - bash <(curl -s https://codecov.io/bash)
+  - cd ${WRK_DIR}/android
+  #- adb -e logcat *:W | tee test_logcat.log > /dev/null 2>&1 &
+  - chmod +x ./gradlew
+  - ./gradlew connectedAndroidTest mergeAndroidReports --continue -PdisablePreDex --stacktrace
+  #note that we should now have reports output to
 
-after_success:
-    - codecov
+  #- echo " LOGCAT "; echo "========"; cat test_logcat.log; pkill -KILL -f adb
+  - export ANDROID_TEST_LOG_DIR="${WRK_DIR}/android/build/reports/androidTests"
+  - cd "${ANDROID_TEST_LOG_DIR:-.}" && pwd && ls -al
+  - for file in *.html; do lynx --dump "$file" > "${file}.log"; echo "================ TEST RESULTS - ${ANDROID_TEST_LOG_DIR}/${file} ================"; cat "${file}.log"; echo ""; done || true
+
+  #comment out for now to speed up builds
+  # #finally, if we are here then all we have remaining to do is ensure TMHarness Release assembles
+  # - ./gradlew clean --stacktrace
+  # - ./gradlew assembleRelease -PdisablePreDex --stacktrace
 
 # language: android
 # dist : trusty
