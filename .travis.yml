@@ -66,10 +66,10 @@ before_script:
   - export WRK_DIR=$(pwd)
   - echo WRK_DIR is $WRK_DIR
 
-  #set mbgl api key - apk will not build without one
-  - cd ${WRK_DIR}/android/TMHarness/TMHarnessUX
-  - sed -i "s/YOUR_MAPBOX_API_ACCESS_TOKEN/${MBGL_API_ACCESS_TOKEN}/g" mbgl.properties
-  # - cat mbgl.properties
+#   #set mbgl api key - apk will not build without one
+#   - cd ${WRK_DIR}/android/TMHarness/TMHarnessUX
+#   - sed -i "s/YOUR_MAPBOX_API_ACCESS_TOKEN/${MBGL_API_ACCESS_TOKEN}/g" mbgl.properties
+#   # - cat mbgl.properties
 
   #start avd/emulator appropriate for build target - see env.matrix
   #list available avd targets - uncomment and run this once to get an updated list of currently available targets for emulator
@@ -80,17 +80,17 @@ before_script:
   - android-wait-for-emulator
   - adb shell input keyevent 82 &
 
-script:
-  - cd ${WRK_DIR}/android
-  #- adb -e logcat *:W | tee test_logcat.log > /dev/null 2>&1 &
-  - chmod +x ./gradlew
-  - ./gradlew connectedAndroidTest mergeAndroidReports --continue -PdisablePreDex --stacktrace
-  #note that we should now have reports output to
+# script:
+#   - cd ${WRK_DIR}/android
+#   #- adb -e logcat *:W | tee test_logcat.log > /dev/null 2>&1 &
+#   - chmod +x ./gradlew
+#   - ./gradlew connectedAndroidTest mergeAndroidReports --continue -PdisablePreDex --stacktrace
+#   #note that we should now have reports output to
 
-  #- echo " LOGCAT "; echo "========"; cat test_logcat.log; pkill -KILL -f adb
-  - export ANDROID_TEST_LOG_DIR="${WRK_DIR}/android/build/reports/androidTests"
-  - cd "${ANDROID_TEST_LOG_DIR:-.}" && pwd && ls -al
-  - for file in *.html; do lynx --dump "$file" > "${file}.log"; echo "================ TEST RESULTS - ${ANDROID_TEST_LOG_DIR}/${file} ================"; cat "${file}.log"; echo ""; done || true
+#   #- echo " LOGCAT "; echo "========"; cat test_logcat.log; pkill -KILL -f adb
+#   - export ANDROID_TEST_LOG_DIR="${WRK_DIR}/android/build/reports/androidTests"
+#   - cd "${ANDROID_TEST_LOG_DIR:-.}" && pwd && ls -al
+#   - for file in *.html; do lynx --dump "$file" > "${file}.log"; echo "================ TEST RESULTS - ${ANDROID_TEST_LOG_DIR}/${file} ================"; cat "${file}.log"; echo ""; done || true
 
   #comment out for now to speed up builds
   # #finally, if we are here then all we have remaining to do is ensure TMHarness Release assembles
