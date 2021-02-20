@@ -40,7 +40,7 @@ cache:
 
 before_script:
   - chmod +x gradlew
-  - echo no | android create avd --force -n test -t android-$EMULATOR_API --abi google_apis/armeabi-v7a
+  - echo "no" | avdmanager --verbose create avd --force --name "pixel_9.0" --device "pixel" --package "system-images;android-28;google_apis;x86" --tag "google_apis" --abi "x86"
   - emulator -avd test -no-audio -no-window &
   - android-wait-for-emulator
   - adb shell input keyevent 82 &
